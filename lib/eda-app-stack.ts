@@ -9,6 +9,8 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as path from "path";
 
 import { Construct } from "constructs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -92,6 +94,29 @@ export class EDAAppStack extends cdk.Stack {
     }
   );
 
+  // Create Filter Lambda
+  const filterImagesFn = new lambdanode.NodejsFunction(this, 'FilterImagesFn', {
+    runtime: lambda.Runtime.NODEJS_22_X,
+    entry: path.join(__dirname, '../lambdas/filterImages.ts'),
+    handler: 'handler',
+    environment: {
+      IMAGE_TABLE_NAME: imagesTable.tableName,
+    },
+  });
+
+  // Create API Gateway
+  const api = new apigateway.RestApi(this, 'ImageFilterApi', {
+    restApiName: 'Image Filter Service',
+    defaultCorsPreflightOptions: {
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowMethods: apigateway.Cors.ALL_METHODS
+    }
+  });
+
+  // Add /filter endpoint
+  const filterEndpoint = api.root.addResource('filter');
+  filterEndpoint.addMethod('POST', new apigateway.LambdaIntegration(filterImagesFn));
+
   // Topic subscriptions
   newImageTopic.addSubscription(new subs.SqsSubscription(mailerQ));
 
@@ -162,6 +187,9 @@ export class EDAAppStack extends cdk.Stack {
   
   // Grant SNS publish permissions to update status Lambda
   newImageTopic.grantPublish(updateStatusFn);
+
+  // Grant Lambda permissions to access DynamoDB
+  imagesTable.grantReadData(filterImagesFn);
 
   // Output
   

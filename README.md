@@ -1,4 +1,4 @@
-# DSassignment2 - Event-Driven Architecture Photo Processing
+  # DSassignment2 - Event-Driven Architecture Photo Processing
 
 ## Project Overview
 
@@ -33,10 +33,15 @@ The architecture follows an event-driven pattern:
   - Updates image status in DynamoDB
   - Notifies photographers of status changes
 
+- **Filtering (40 marks)**
+  - Filter images by date range, status, and photographer
+  - RESTful API endpoint for querying images
+  - Supports combined filtering criteria
+  - Returns filtered results with metadata
+
 ### In Progress Features
 - **Metadata updating (10 marks)**
 - **Invalid image removal (10 marks)**
-- **Filtering (40 marks)**
 - **Messaging (10 marks)**
 
 ## Status Update Feature
@@ -72,6 +77,36 @@ You can test the Status Update feature using the provided testing tool:
    ```
    ts-node tools/sendStatusUpdate.ts <imageId> <Pass|Reject> "Optional reason"
    ```
+
+## Filtering Feature
+
+The Filtering feature provides a flexible way to search and retrieve images based on various criteria through a RESTful API endpoint.
+
+### Key Features
+
+1. **Multiple Filter Criteria**
+   - Date Range: Search images by upload date
+   - Status: Filter by image processing status
+   - Photographer: Search by photographer information
+
+2. **API Integration**
+   - RESTful API endpoint for easy integration
+   - JSON-based request and response format
+   - Supports combined filter criteria
+
+3. **Response Details**
+   - Returns matching image records with metadata
+   - Includes total count of matching items
+   - Provides search criteria confirmation
+
+### Testing
+
+The filtering functionality can be tested using:
+- Postman
+- cURL
+- Any HTTP client that supports POST requests
+
+For detailed examples and demonstrations, please refer to the video documentation.
 
 ## Implementation Details
 

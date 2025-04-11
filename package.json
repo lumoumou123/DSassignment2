@@ -27,8 +27,10 @@
     "@aws-sdk/client-sqs": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.787.0",
     "@aws-sdk/util-dynamodb": "^3.738.0",
+    "@types/axios": "^0.9.36",
     "ajv": "^8.17.1",
     "aws-cdk-lib": "2.176.0",
+    "axios": "^1.8.4",
     "constructs": "^10.4.2",
     "source-map-support": "^0.5.21",
     "uuid": "^11.1.0"
