@@ -8,6 +8,7 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 
 import { Construct } from "constructs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -22,6 +23,14 @@ export class EDAAppStack extends cdk.Stack {
       publicReadAccess: false,
     });
 
+    // DynamoDB table for storing image information
+    const imagesTable = new dynamodb.Table(this, "ImagesTable", {
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      tableName: "Images",
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // NOT recommended for production
+    });
+    
     // Output
     
     new cdk.CfnOutput(this, "bucketName", {
@@ -50,6 +59,9 @@ export class EDAAppStack extends cdk.Stack {
       entry: `${__dirname}/../lambdas/processImage.ts`,
       timeout: cdk.Duration.seconds(15),
       memorySize: 128,
+      environment: {
+        IMAGE_TABLE_NAME: imagesTable.tableName,
+      },
     }
   );
   const mailerFn = new lambdanode.NodejsFunction(this, "mailer-function", {
@@ -103,6 +115,9 @@ export class EDAAppStack extends cdk.Stack {
   );
 
   imagesBucket.grantRead(processImageFn);
+  
+  // Grant DynamoDB write permissions to processImageFn
+  imagesTable.grantWriteData(processImageFn);
 
   // Output
   

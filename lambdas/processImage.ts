@@ -1,5 +1,5 @@
 /* eslint-disable import/extensions, import/no-absolute-path */
-import { SQSHandler } from "aws-lambda";
+import { SQSHandler, SQSEvent } from "aws-lambda";
 import {
   GetObjectCommand,
   PutObjectCommandInput,
@@ -7,10 +7,17 @@ import {
   S3Client,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { v4 as uuidv4 } from 'uuid';
 
 const s3 = new S3Client();
+const dynamoClient = new DynamoDBClient();
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
+// Use environment variable for table name
+const IMAGE_TABLE_NAME = process.env.IMAGE_TABLE_NAME || "Images";
 
-export const handler: SQSHandler = async (event) => {
+export const handler: SQSHandler = async (event: SQSEvent) => {
   console.log("Event ", JSON.stringify(event));
   for (const record of event.Records) {
     const recordBody = JSON.parse(record.body);        // Parse SQS message
@@ -31,12 +38,44 @@ export const handler: SQSHandler = async (event) => {
             Key: srcKey,
           };
           origimage = await s3.send(new GetObjectCommand(params));
-          // Process the image ......
+          
+          // Extract image metadata
+          const metadata = origimage.Metadata || {};
+          const contentType = origimage.ContentType;
+          const size = origimage.ContentLength;
+          
+          // Create image record
+          const imageRecord = {
+            id: uuidv4(),
+            s3Key: srcKey,
+            bucket: srcBucket,
+            uploadedAt: new Date().toISOString(),
+            size: size,
+            contentType: contentType,
+            metadata: metadata,
+            status: "pending", // Initial status
+            photographer: metadata.photographer || "unknown"
+          };
+          
+          console.log(`Storing image record to DynamoDB table: ${IMAGE_TABLE_NAME}`);
+          
+          // Store to DynamoDB
+          await docClient.send(new PutCommand({
+            TableName: IMAGE_TABLE_NAME,
+            Item: imageRecord
+          }));
+          
+          console.log(`Successfully logged image: ${srcKey} with ID: ${imageRecord.id}`);
+          
         } catch (error) {
-          console.log(error);
+          console.error("Error processing/logging image:", error);
+          // Log the error but continue processing other records
+          // You might want to implement a dead-letter queue for failed records
         }
       }
     }
   }
+  
+  // Lambda SQS handlers don't need to return anything
 };
 
