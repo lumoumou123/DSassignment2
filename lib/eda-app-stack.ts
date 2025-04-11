@@ -48,6 +48,11 @@ export class EDAAppStack extends cdk.Stack {
       const mailerQ = new sqs.Queue(this, "mailer-queue", {
         receiveMessageWaitTime: cdk.Duration.seconds(10),
       });
+      
+      // Status Update Queue
+      const statusUpdateQueue = new sqs.Queue(this, "status-update-queue", {
+        receiveMessageWaitTime: cdk.Duration.seconds(10),
+      });
   
   // Lambda functions
 
@@ -70,21 +75,49 @@ export class EDAAppStack extends cdk.Stack {
     timeout: cdk.Duration.seconds(3),
     entry: `${__dirname}/../lambdas/mailer.ts`,
   });
+  
+  // Status Update Lambda
+  const updateStatusFn = new lambdanode.NodejsFunction(
+    this,
+    "UpdateStatusFn",
+    {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      entry: `${__dirname}/../lambdas/updateStatus.ts`,
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 128,
+      environment: {
+        IMAGE_TABLE_NAME: imagesTable.tableName,
+        STATUS_UPDATE_TOPIC_ARN: newImageTopic.topicArn,
+      },
+    }
+  );
 
+  // Topic subscriptions
   newImageTopic.addSubscription(new subs.SqsSubscription(mailerQ));
 
   newImageTopic.addSubscription(
     new subs.SqsSubscription(imageProcessQueue)
   );
+  
+  // Add subscription for status updates with filter policy
+  newImageTopic.addSubscription(
+    new subs.SqsSubscription(statusUpdateQueue, {
+      filterPolicy: {
+        messageType: sns.SubscriptionFilter.stringFilter({
+          allowlist: ["STATUS_UPDATE"]
+        })
+      }
+    })
+  );
 
-  // S3 --> SQS
+  // S3 --> SNS
   imagesBucket.addEventNotification(
     s3.EventType.OBJECT_CREATED,
-    new s3n.SnsDestination(newImageTopic)  // Changed
-);
+    new s3n.SnsDestination(newImageTopic)
+  );
 
 
- // SQS --> Lambda
+ // SQS --> Lambda connections
 
  const newImageMailEventSource = new events.SqsEventSource(mailerQ, {
   batchSize: 5,
@@ -96,9 +129,16 @@ export class EDAAppStack extends cdk.Stack {
   maxBatchingWindow: cdk.Duration.seconds(5),
 });
 
-  mailerFn.addEventSource(newImageMailEventSource);
+ // Status update event source
+ const statusUpdateEventSource = new events.SqsEventSource(statusUpdateQueue, {
+  batchSize: 5,
+  maxBatchingWindow: cdk.Duration.seconds(5),
+});
 
+  // Connect event sources to Lambdas
+  mailerFn.addEventSource(newImageMailEventSource);
   processImageFn.addEventSource(newImageEventSource);
+  updateStatusFn.addEventSource(statusUpdateEventSource);
 
   // Permissions
   
@@ -116,13 +156,22 @@ export class EDAAppStack extends cdk.Stack {
 
   imagesBucket.grantRead(processImageFn);
   
-  // Grant DynamoDB write permissions to processImageFn
+  // Grant DynamoDB permissions
   imagesTable.grantWriteData(processImageFn);
+  imagesTable.grantReadWriteData(updateStatusFn);
+  
+  // Grant SNS publish permissions to update status Lambda
+  newImageTopic.grantPublish(updateStatusFn);
 
   // Output
   
   new cdk.CfnOutput(this, "imagesBucketNameOutput", {
     value: imagesBucket.bucketName,
+  });
+  
+  // Output the SNS topic ARN for CLI testing
+  new cdk.CfnOutput(this, "snsTopic", {
+    value: newImageTopic.topicArn,
   });
 
   }

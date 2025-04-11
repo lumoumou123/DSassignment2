@@ -27,13 +27,51 @@ The architecture follows an event-driven pattern:
 - **Status Update Mailer (10 marks)**
   - Sends email notifications when new images are uploaded
   - Uses AWS SES for reliable email delivery
+  
+- **Status updating (10 marks)**
+  - Moderators can review and approve/reject images via CLI
+  - Updates image status in DynamoDB
+  - Notifies photographers of status changes
 
 ### In Progress Features
 - **Metadata updating (10 marks)**
 - **Invalid image removal (10 marks)**
-- **Status updating (10 marks)**
 - **Filtering (40 marks)**
 - **Messaging (10 marks)**
+
+## Status Update Feature
+
+The Status Update feature allows moderators to review and approve or reject images.
+
+### How it works
+
+1. **Moderator Review**: Moderators use a CLI to submit review decisions
+2. **Message Format**:
+   ```json
+   {
+     "id": "image-id-string",
+     "date": "01/05/2025",
+     "update": {
+       "status": "Pass/Reject",
+       "reason": "Reason for decision"
+     }
+   }
+   ```
+
+3. **Processing**: The Update Status Lambda processes these messages, updating the image status in DynamoDB
+4. **Notification**: Photographers receive email notifications about status changes
+
+### Testing the Feature
+
+You can test the Status Update feature using the provided testing tool:
+
+1. Deploy the application
+2. Obtain the SNS Topic ARN from the CloudFormation outputs
+3. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
+4. Run the test tool:
+   ```
+   ts-node tools/sendStatusUpdate.ts <imageId> <Pass|Reject> "Optional reason"
+   ```
 
 ## Implementation Details
 
@@ -49,6 +87,14 @@ Images uploaded to S3 trigger an event that's sent to SNS and then to an SQS que
 
 ### Status Update Mailer
 The same S3 event also triggers an email notification via another Lambda function (`mailer.ts`). This function sends an email to notify stakeholders about the new image upload.
+
+### Status Updating
+The Status Update feature uses the following workflow:
+1. Moderators submit decisions via CLI or testing tool
+2. Messages are published to SNS with message attributes for filtering
+3. A dedicated SQS queue receives status update messages
+4. The updateStatus Lambda processes these messages and updates DynamoDB
+5. A notification is sent to the photographer via email
 
 ## Technology Stack
 
@@ -92,7 +138,7 @@ The same S3 event also triggers an email notification via another Lambda functio
 - Complete the remaining features:
   - Metadata updating
   - Invalid image removal
-  - Status updating and filtering
+  - Filtering (40 marks)
   - Comprehensive messaging
 - Add front-end for easier management
 - Implement additional image processing capabilities

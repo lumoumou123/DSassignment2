@@ -26,7 +26,51 @@ export const handler: SQSHandler = async (event: any) => {
     const recordBody = JSON.parse(record.body);
     const snsMessage = JSON.parse(recordBody.Message);
 
-    if (snsMessage.Records) {
+    // Handle status update notification
+    if (snsMessage.type === "STATUS_UPDATE") {
+      try {
+        const { imageId, newStatus, reason, photographerEmail, s3Key } = snsMessage;
+        
+        // Generate email subject and content based on status
+        const statusText = newStatus === "Pass" ? "approved" : "rejected";
+        const subject = `Your image has been ${statusText}`;
+        
+        const emailParams: SendEmailCommandInput = {
+          Destination: {
+            ToAddresses: [photographerEmail || SES_EMAIL_TO],
+          },
+          Message: {
+            Body: {
+              Html: {
+                Charset: "UTF-8",
+                Data: `
+                  <html>
+                    <body>
+                      <h2>Image Status Update</h2>
+                      <p>Your image (${s3Key}) has been <strong>${statusText}</strong>.</p>
+                      ${reason ? `<p>Reason: ${reason}</p>` : ''}
+                      <p>Thank you for using our service.</p>
+                    </body>
+                  </html>
+                `,
+              },
+            },
+            Subject: {
+              Charset: "UTF-8",
+              Data: subject,
+            },
+          },
+          Source: SES_EMAIL_FROM,
+        };
+        
+        await client.send(new SendEmailCommand(emailParams));
+        console.log(`Status update email sent to ${photographerEmail || SES_EMAIL_TO}`);
+      } catch (error) {
+        console.error("Error sending status update email:", error);
+      }
+    }
+    // Original image upload notification handling
+    else if (snsMessage.Records) {
       console.log("Record body ", JSON.stringify(snsMessage));
       for (const messageRecord of snsMessage.Records) {
         const s3e = messageRecord.s3;
