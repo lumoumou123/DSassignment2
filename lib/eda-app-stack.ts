@@ -56,6 +56,11 @@ export class EDAAppStack extends cdk.Stack {
         receiveMessageWaitTime: cdk.Duration.seconds(10),
       });
   
+  // 创建元数据更新队列
+  const metadataUpdateQueue = new sqs.Queue(this, "metadata-update-queue", {
+    receiveMessageWaitTime: cdk.Duration.seconds(10),
+  });
+
   // Lambda functions
 
   const processImageFn = new lambdanode.NodejsFunction(
@@ -135,6 +140,17 @@ export class EDAAppStack extends cdk.Stack {
     })
   );
 
+  // 添加SNS主题订阅，带过滤条件
+  newImageTopic.addSubscription(
+    new subs.SqsSubscription(metadataUpdateQueue, {
+      filterPolicy: {
+        messageType: sns.SubscriptionFilter.stringFilter({
+          allowlist: ["METADATA_UPDATE"]
+        })
+      }
+    })
+  );
+
   // S3 --> SNS
   imagesBucket.addEventNotification(
     s3.EventType.OBJECT_CREATED,
@@ -165,6 +181,29 @@ export class EDAAppStack extends cdk.Stack {
   processImageFn.addEventSource(newImageEventSource);
   updateStatusFn.addEventSource(statusUpdateEventSource);
 
+  // 创建元数据更新Lambda
+  const updateMetadataFn = new lambdanode.NodejsFunction(
+    this,
+    "UpdateMetadataFn",
+    {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      entry: `${__dirname}/../lambdas/updateMetadata.ts`,
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 128,
+      environment: {
+        IMAGE_TABLE_NAME: imagesTable.tableName,
+      },
+    }
+  );
+
+  // 连接SQS到Lambda
+  const metadataUpdateEventSource = new events.SqsEventSource(metadataUpdateQueue, {
+    batchSize: 5,
+    maxBatchingWindow: cdk.Duration.seconds(5),
+  });
+
+  updateMetadataFn.addEventSource(metadataUpdateEventSource);
+
   // Permissions
   
   mailerFn.addToRolePolicy(
@@ -190,6 +229,9 @@ export class EDAAppStack extends cdk.Stack {
 
   // Grant Lambda permissions to access DynamoDB
   imagesTable.grantReadData(filterImagesFn);
+
+  // 添加所需权限
+  imagesTable.grantReadWriteData(updateMetadataFn);
 
   // Output
   
