@@ -171,11 +171,70 @@ The Status Update feature uses the following workflow:
 ## Future Work
 
 - Complete the remaining features:
-  - Metadata updating
   - Invalid image removal
-  - Filtering (40 marks)
   - Comprehensive messaging
 - Add front-end for easier management
 - Implement additional image processing capabilities
+
+## Metadata Update Feature
+
+The Metadata Update feature allows updating image metadata such as captions, dates, and photographer names.
+
+### Message Format
+
+The metadata update messages follow a specific format:
+
+1. **Message Body**:
+   ```json
+   {
+     "id": "image1.jpeg",
+     "value": "Olympic 100m final - 2024"
+   }
+   ```
+
+2. **Message Attributes**:
+   ```json
+   {
+     "metadata_type": {
+       "DataType": "String",
+       "StringValue": "Caption"
+     }
+   }
+   ```
+
+### Valid Metadata Types
+
+The system supports three types of metadata updates:
+- `Caption`: Image caption or description
+- `Date`: Image date in string format
+- `name`: Photographer's name
+
+### Testing the Feature
+
+You can test the Metadata Update feature using the provided testing tool:
+
+1. Deploy the application
+2. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
+3. Run the test tool:
+   ```bash
+   ts-node tools/updateMetadata.ts <imageId> <Caption|Date|name> "value"
+   ```
+
+Example:
+```bash
+ts-node tools/updateMetadata.ts image1.jpeg Caption "Olympic 100m final - 2024"
+ts-node tools/updateMetadata.ts image1.jpeg Date "2024-04-15"
+ts-node tools/updateMetadata.ts image1.jpeg name "John Smith"
+```
+
+### Implementation Details
+
+The metadata update process follows this workflow:
+1. Updates are submitted via CLI tool
+2. Messages are published to SNS with appropriate attributes
+3. A dedicated SQS queue receives metadata update messages
+4. The updateMetadata Lambda processes these messages
+5. DynamoDB records are updated with new metadata
+6. Each update includes a timestamp of the modification
 
 
