@@ -6,8 +6,6 @@ This project implements a serverless event-driven architecture on AWS for proces
 
 ## Architecture
 
-![Architecture Diagram](https://github.com/lumoumou123/DSassignment2/raw/main/images/architecture.png)
-
 The architecture follows an event-driven pattern:
 
 1. Photographers upload images to S3 bucket

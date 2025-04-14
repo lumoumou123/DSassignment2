@@ -18,6 +18,13 @@ type ContactDetails = {
   message: string;
 };
 
+// 验证电子邮件格式的函数
+function isValidEmail(email: string): boolean {
+  if (!email) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 const client = new SESClient({ region: SES_REGION});
 
 export const handler: SQSHandler = async (event: any) => {
@@ -31,13 +38,16 @@ export const handler: SQSHandler = async (event: any) => {
       try {
         const { imageId, newStatus, reason, photographerEmail, s3Key } = snsMessage;
         
+        // 验证收件人邮箱，如果无效则使用默认邮箱
+        const toEmail = isValidEmail(photographerEmail) ? photographerEmail : SES_EMAIL_TO;
+        
         // Generate email subject and content based on status
         const statusText = newStatus === "Pass" ? "approved" : "rejected";
         const subject = `Your image has been ${statusText}`;
         
         const emailParams: SendEmailCommandInput = {
           Destination: {
-            ToAddresses: [photographerEmail || SES_EMAIL_TO],
+            ToAddresses: [toEmail],
           },
           Message: {
             Body: {
@@ -64,7 +74,7 @@ export const handler: SQSHandler = async (event: any) => {
         };
         
         await client.send(new SendEmailCommand(emailParams));
-        console.log(`Status update email sent to ${photographerEmail || SES_EMAIL_TO}`);
+        console.log(`Status update email sent to ${toEmail}`);
       } catch (error) {
         console.error("Error sending status update email:", error);
       }

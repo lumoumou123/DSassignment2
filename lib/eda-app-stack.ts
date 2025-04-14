@@ -143,7 +143,15 @@ export class EDAAppStack extends cdk.Stack {
   filterEndpoint.addMethod('POST', new apigateway.LambdaIntegration(filterImagesFn));
 
   // Topic subscriptions
+  // 删除原来的简单订阅
+  // newImageTopic.addSubscription(new subs.SqsSubscription(mailerQ));
+  
+  // 为mailerQ添加基本订阅，处理默认的S3事件通知
   newImageTopic.addSubscription(new subs.SqsSubscription(mailerQ));
+  
+  // 移除重复的订阅，改用SNS消息属性做过滤
+  // 在lambdas/mailer.ts中已经有代码通过检查snsMessage.type === "STATUS_UPDATE"来处理状态更新消息
+  // 不需要重复订阅
 
   newImageTopic.addSubscription(
     new subs.SqsSubscription(imageProcessQueue)
