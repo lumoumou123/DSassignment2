@@ -61,6 +61,11 @@ export class EDAAppStack extends cdk.Stack {
     receiveMessageWaitTime: cdk.Duration.seconds(10),
   });
 
+  // 创建无效图像删除队列 (DLQ)
+  const invalidImageDLQ = new sqs.Queue(this, "invalid-image-queue", {
+    receiveMessageWaitTime: cdk.Duration.seconds(10),
+  });
+
   // Lambda functions
 
   const processImageFn = new lambdanode.NodejsFunction(
@@ -109,6 +114,21 @@ export class EDAAppStack extends cdk.Stack {
     },
   });
 
+  // 创建无效图像删除Lambda
+  const removeInvalidImageFn = new lambdanode.NodejsFunction(
+    this,
+    "RemoveInvalidImageFn",
+    {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      entry: `${__dirname}/../lambdas/removeInvalidImage.ts`,
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 128,
+      environment: {
+        IMAGE_TABLE_NAME: imagesTable.tableName,
+      },
+    }
+  );
+
   // Create API Gateway
   const api = new apigateway.RestApi(this, 'ImageFilterApi', {
     restApiName: 'Image Filter Service',
@@ -146,6 +166,17 @@ export class EDAAppStack extends cdk.Stack {
       filterPolicy: {
         messageType: sns.SubscriptionFilter.stringFilter({
           allowlist: ["METADATA_UPDATE"]
+        })
+      }
+    })
+  );
+
+  // 添加无效图像删除队列订阅，带过滤条件
+  newImageTopic.addSubscription(
+    new subs.SqsSubscription(invalidImageDLQ, {
+      filterPolicy: {
+        messageType: sns.SubscriptionFilter.stringFilter({
+          allowlist: ["INVALID_IMAGE"]
         })
       }
     })
@@ -204,6 +235,14 @@ export class EDAAppStack extends cdk.Stack {
 
   updateMetadataFn.addEventSource(metadataUpdateEventSource);
 
+  // 连接无效图像DLQ到Lambda
+  const invalidImageEventSource = new events.SqsEventSource(invalidImageDLQ, {
+    batchSize: 5,
+    maxBatchingWindow: cdk.Duration.seconds(5),
+  });
+
+  removeInvalidImageFn.addEventSource(invalidImageEventSource);
+
   // Permissions
   
   mailerFn.addToRolePolicy(
@@ -232,6 +271,10 @@ export class EDAAppStack extends cdk.Stack {
 
   // 添加所需权限
   imagesTable.grantReadWriteData(updateMetadataFn);
+
+  // 添加无效图像删除Lambda所需权限
+  imagesTable.grantReadWriteData(removeInvalidImageFn);
+  imagesBucket.grantDelete(removeInvalidImageFn);
 
   // Output
   

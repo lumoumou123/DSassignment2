@@ -39,10 +39,26 @@ The architecture follows an event-driven pattern:
   - Supports combined filtering criteria
   - Returns filtered results with metadata
 
-### In Progress Features
 - **Metadata updating (10 marks)**
+  - Update image metadata such as caption, date, and photographer name
+  - Changes are processed through SNS/SQS and Lambda
+  - Uses message filtering for efficient processing
+
 - **Invalid image removal (10 marks)**
+  - Remove invalid or problematic images from S3
+  - Update or delete corresponding DynamoDB records
+  - DLQ-based architecture for handling invalid images
+
 - **Messaging (10 marks)**
+  - Message-based communication between components
+  - SNS/SQS infrastructure with filtering
+  - Event-driven architecture for scalability
+
+### Future Enhancements
+- Add front-end interface for easier management
+- Implement additional image processing capabilities
+- Add batch processing for high volumes
+- Enhance security features and access controls
 
 ## Status Update Feature
 
@@ -107,6 +123,47 @@ The filtering functionality can be tested using:
 - Any HTTP client that supports POST requests
 
 For detailed examples and demonstrations, please refer to the video documentation.
+
+## Invalid Image Removal Feature
+
+The Invalid Image Removal feature enables the system to handle and remove images that are invalid, corrupted, or violate guidelines.
+
+### How it works
+
+1. **Detection**: Invalid images are identified either through automated processes or manual review
+2. **Message Format**:
+   ```json
+   {
+     "id": "image-id-string",
+     "reason": "Invalid image format or content",
+     "action": "MARK_INVALID or DELETE_RECORD"
+   }
+   ```
+
+3. **Processing**: The Remove Invalid Image Lambda processes these messages:
+   - Retrieves the image record from DynamoDB
+   - Deletes the original file from S3 bucket
+   - Either marks the record as "invalid" or completely removes it from DynamoDB
+
+4. **Architecture**: Uses a dedicated Dead Letter Queue (DLQ) and Lambda function, with messages filtered by the "INVALID_IMAGE" message type
+
+### Testing the Feature
+
+You can test the Invalid Image Removal feature using the provided testing tool:
+
+1. Deploy the application
+2. Obtain the SNS Topic ARN from the CloudFormation outputs
+3. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
+4. Run the test tool:
+   ```
+   npx ts-node tools/removeInvalidImage.ts <imageId> [deleteRecord]
+   ```
+   - Set `deleteRecord` to "true" if you want to completely remove the record from DynamoDB
+
+Example:
+```bash
+npx ts-node tools/removeInvalidImage.ts 7e6d23d2-0d27-44cc-8b6c-efd8b2782c5c
+```
 
 ## Implementation Details
 
