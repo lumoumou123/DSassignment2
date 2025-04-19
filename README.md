@@ -1,8 +1,25 @@
-  # DSassignment2 - Event-Driven Architecture Photo Processing
+# Distributed Systems - Event-Driven Architecture Photo Processing
+
+__Name:__ Hao ran lu
+
+__Demo__: https://youtu.be/gSW4wnx03_M
 
 ## Project Overview
 
 This project implements a serverless event-driven architecture on AWS for processing images and metadata. The system allows photographers to upload images to S3 storage and processes them automatically through a series of Lambda functions triggered by events.
+
+## Features Status
+
+__Feature:__
++ Photographer:
+  + Log new Images - Completed & Tested
+  + Metadata updating - Completed & Tested
+  + Invalid image removal - Completed & Tested
+  + Status Update Mailer - Completed & Tested
++ Moderator:
+  + Status updating - Completed & Tested
+  + Filtering - Completed & Tested
+  + Messaging - Completed & Tested
 
 ## Architecture
 
@@ -223,14 +240,6 @@ The Status Update feature uses the following workflow:
    aws s3 cp <image-path> s3://<bucket-name>/
    ```
 
-## Future Work
-
-- Complete the remaining features:
-  - Invalid image removal
-  - Comprehensive messaging
-- Add front-end for easier management
-- Implement additional image processing capabilities
-
 ## Metadata Update Feature
 
 The Metadata Update feature allows updating image metadata such as captions, dates, and photographer names.
@@ -291,5 +300,7 @@ The metadata update process follows this workflow:
 4. The updateMetadata Lambda processes these messages
 5. DynamoDB records are updated with new metadata
 6. Each update includes a timestamp of the modification
+
+
 
 

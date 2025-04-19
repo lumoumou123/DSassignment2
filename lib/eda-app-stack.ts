@@ -220,7 +220,7 @@ export class EDAAppStack extends cdk.Stack {
   processImageFn.addEventSource(newImageEventSource);
   updateStatusFn.addEventSource(statusUpdateEventSource);
 
-  // 创建元数据更新Lambda
+  // Create metadata update Lambda
   const updateMetadataFn = new lambdanode.NodejsFunction(
     this,
     "UpdateMetadataFn",
@@ -235,7 +235,7 @@ export class EDAAppStack extends cdk.Stack {
     }
   );
 
-  // 连接SQS到Lambda
+  // Connect SQS to Lambda
   const metadataUpdateEventSource = new events.SqsEventSource(metadataUpdateQueue, {
     batchSize: 5,
     maxBatchingWindow: cdk.Duration.seconds(5),
@@ -243,7 +243,7 @@ export class EDAAppStack extends cdk.Stack {
 
   updateMetadataFn.addEventSource(metadataUpdateEventSource);
 
-  // 连接无效图像DLQ到Lambda
+  // Connect invalid image DLQ to Lambda
   const invalidImageEventSource = new events.SqsEventSource(invalidImageDLQ, {
     batchSize: 5,
     maxBatchingWindow: cdk.Duration.seconds(5),
@@ -277,10 +277,10 @@ export class EDAAppStack extends cdk.Stack {
   // Grant Lambda permissions to access DynamoDB
   imagesTable.grantReadData(filterImagesFn);
 
-  // 添加所需权限
+  // Add required permissions
   imagesTable.grantReadWriteData(updateMetadataFn);
 
-  // 添加无效图像删除Lambda所需权限
+  // Add permissions for invalid image deletion Lambda
   imagesTable.grantReadWriteData(removeInvalidImageFn);
   imagesBucket.grantDelete(removeInvalidImageFn);
 
