@@ -2,7 +2,6 @@
 
 __Name:__ Hao ran lu
 
-__Demo__: https://youtu.be/gSW4wnx03_M
 
 ## Project Overview
 
@@ -69,11 +68,6 @@ The architecture follows an event-driven pattern:
   - SNS/SQS infrastructure with filtering
   - Event-driven architecture for scalability
 
-### Future Enhancements
-- Add front-end interface for easier management
-- Implement additional image processing capabilities
-- Add batch processing for high volumes
-- Enhance security features and access controls
 
 ## Status Update Feature
 
