@@ -32,7 +32,7 @@ export class EDAAppStack extends cdk.Stack {
       tableName: "Images",
       removalPolicy: cdk.RemovalPolicy.DESTROY, // NOT recommended for production
     });
-    
+
     // Output
     
     new cdk.CfnOutput(this, "bucketName", {
@@ -63,9 +63,9 @@ export class EDAAppStack extends cdk.Stack {
 
   // 创建无效图像删除队列 (DLQ)
   const invalidImageDLQ = new sqs.Queue(this, "invalid-image-queue", {
-    receiveMessageWaitTime: cdk.Duration.seconds(10),
-  });
-
+        receiveMessageWaitTime: cdk.Duration.seconds(10),
+      });
+  
   // Lambda functions
 
   const processImageFn = new lambdanode.NodejsFunction(
@@ -87,7 +87,7 @@ export class EDAAppStack extends cdk.Stack {
     timeout: cdk.Duration.seconds(3),
     entry: `${__dirname}/../lambdas/mailer.ts`,
   });
-  
+
   // Status Update Lambda
   const updateStatusFn = new lambdanode.NodejsFunction(
     this,
@@ -156,7 +156,7 @@ export class EDAAppStack extends cdk.Stack {
   newImageTopic.addSubscription(
     new subs.SqsSubscription(imageProcessQueue)
   );
-  
+
   // Add subscription for status updates with filter policy
   newImageTopic.addSubscription(
     new subs.SqsSubscription(statusUpdateQueue, {
@@ -194,7 +194,7 @@ export class EDAAppStack extends cdk.Stack {
   imagesBucket.addEventNotification(
     s3.EventType.OBJECT_CREATED,
     new s3n.SnsDestination(newImageTopic)
-  );
+);
 
 
  // SQS --> Lambda connections

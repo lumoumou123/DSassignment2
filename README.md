@@ -139,6 +139,46 @@ The filtering functionality can be tested using:
 
 For detailed examples and demonstrations, please refer to the video documentation.
 
+### Testing the Filter API
+
+You can test the Filter API using curl or Postman:
+
+```bash
+# Test status filter
+curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
+-H "Content-Type: application/json" \
+-d '{"status": "Pass"}'
+
+# Test date range filter
+curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
+-H "Content-Type: application/json" \
+-d '{
+  "dateRange": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  }
+}'
+
+# Test photographer filter
+curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
+-H "Content-Type: application/json" \
+-d '{"photographer": "test@example.com"}'
+
+# Test combined filters
+curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
+-H "Content-Type: application/json" \
+-d '{
+  "status": "Pass",
+  "dateRange": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  },
+  "photographer": "test@example.com"
+}'
+```
+
+You can also use tools like Postman for testing the API with a graphical interface.
+
 ## Invalid Image Removal Feature
 
 The Invalid Image Removal feature enables the system to handle and remove images that are invalid, corrupted, or violate guidelines.
