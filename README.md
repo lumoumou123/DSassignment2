@@ -2,7 +2,7 @@
 
 __Name:__ Hao ran lu
 
-__Demo Video URL:__ https://youtu.be/gSW4wnx03_M
+
 
 ## Project Overview
 
@@ -62,7 +62,6 @@ The architecture follows an event-driven pattern:
 - **Invalid image removal (10 marks)**
   - Remove invalid or problematic images from S3
   - Update or delete corresponding DynamoDB records
-  - DLQ-based architecture for handling invalid images
 
 - **Messaging (10 marks)**
   - Message-based communication between components
