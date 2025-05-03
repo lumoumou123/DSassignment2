@@ -38,19 +38,6 @@ export const handler: SQSHandler = async (event) => {
         continue;
       }
 
-      console.log("完整的SNS消息结构:", JSON.stringify({
-        MessageBody: {
-          id: body.id,
-          value: body.value
-        },
-        MessageAttribute: {
-          metadata_type: {
-            DataType: "String",
-            StringValue: metadataType
-          }
-        }
-      }, null, 2));
-
       // 首先获取当前的metadata
       const getResult = await docClient.send(new GetCommand({
         TableName: IMAGE_TABLE_NAME,

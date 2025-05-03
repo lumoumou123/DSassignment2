@@ -1,0 +1,8 @@
+{
+    "id": "YOUR_IMAGE_ID",
+    "date": "YYYY-MM-DD",
+    "update": {
+        "status": "Pass",
+        "reason": "Optional reason for decision"
+    }
+} 

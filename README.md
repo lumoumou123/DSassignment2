@@ -2,6 +2,7 @@
 
 __Name:__ Hao ran lu
 
+__Demo Video URL:__ https://youtu.be/gSW4wnx03_M
 
 ## Project Overview
 
@@ -43,7 +44,7 @@ The architecture follows an event-driven pattern:
   - Uses AWS SES for reliable email delivery
   
 - **Status updating (10 marks)**
-  - Moderators can review and approve/reject images via CLI
+  - Moderators can review and approve/reject images via AWS CLI
   - Updates image status in DynamoDB
   - Notifies photographers of status changes
 
@@ -68,174 +69,41 @@ The architecture follows an event-driven pattern:
   - SNS/SQS infrastructure with filtering
   - Event-driven architecture for scalability
 
+## AWS CLI Usage
 
-## Status Update Feature
+The project now supports AWS CLI for various operations:
 
-The Status Update feature allows moderators to review and approve or reject images.
+### Invalid Image Removal
+To mark an image as invalid or remove it, use AWS CLI to send a message to the SNS topic. The message should include:
+- Image ID
+- Action type (MARK_INVALID)
+- Message type attribute for invalid image handling
 
-### How it works
+### Update Photographer Information
+To update a photographer's information, use AWS CLI to send a message containing:
+- Image ID
+- New photographer email
+- Message type attribute for photographer updates
 
-1. **Moderator Review**: Moderators use a CLI to submit review decisions
-2. **Message Format**:
-   ```json
-   {
-     "id": "image-id-string",
-     "date": "01/05/2025",
-     "update": {
-       "status": "Pass/Reject",
-       "reason": "Reason for decision"
-     }
-   }
-   ```
-
-3. **Processing**: The Update Status Lambda processes these messages, updating the image status in DynamoDB
-4. **Notification**: Photographers receive email notifications about status changes
-
-### Testing the Feature
-
-You can test the Status Update feature using the provided testing tool:
-
-1. Deploy the application
-2. Obtain the SNS Topic ARN from the CloudFormation outputs
-3. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
-4. Run the test tool:
-   ```
-   ts-node tools/sendStatusUpdate.ts <imageId> <Pass|Reject> "Optional reason"
-   ```
+### Status Updates
+Moderators can use AWS CLI to submit review decisions. Each update includes:
+- Image ID
+- Status (Pass/Reject)
+- Date
+- Optional reason for the decision
 
 ## Filtering Feature
 
-The Filtering feature provides a flexible way to search and retrieve images based on various criteria through a RESTful API endpoint.
-
-### Key Features
-
-1. **Multiple Filter Criteria**
-   - Date Range: Search images by upload date
-   - Status: Filter by image processing status
-   - Photographer: Search by photographer information
-
-2. **API Integration**
-   - RESTful API endpoint for easy integration
-   - JSON-based request and response format
-   - Supports combined filter criteria
-
-3. **Response Details**
-   - Returns matching image records with metadata
-   - Includes total count of matching items
-   - Provides search criteria confirmation
-
-### Testing
-
-The filtering functionality can be tested using:
-- Postman
-- cURL
-- Any HTTP client that supports POST requests
-
-For detailed examples and demonstrations, please refer to the video documentation.
-
-### Testing the Filter API
-
-You can test the Filter API using curl or Postman:
-
-```bash
-# Test status filter
-curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
--H "Content-Type: application/json" \
--d '{"status": "Pass"}'
-
-# Test date range filter
-curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
--H "Content-Type: application/json" \
--d '{
-  "dateRange": {
-    "start": "2024-01-01",
-    "end": "2024-12-31"
-  }
-}'
-
-# Test photographer filter
-curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
--H "Content-Type: application/json" \
--d '{"photographer": "test@example.com"}'
-
-# Test combined filters
-curl -X POST https://your-api-url.execute-api.eu-west-1.amazonaws.com/prod/filter \
--H "Content-Type: application/json" \
--d '{
-  "status": "Pass",
-  "dateRange": {
-    "start": "2024-01-01",
-    "end": "2024-12-31"
-  },
-  "photographer": "test@example.com"
-}'
-```
-
-You can also use tools like Postman for testing the API with a graphical interface.
-
-## Invalid Image Removal Feature
-
-The Invalid Image Removal feature enables the system to handle and remove images that are invalid, corrupted, or violate guidelines.
-
-### How it works
-
-1. **Detection**: Invalid images are identified either through automated processes or manual review
-2. **Message Format**:
-   ```json
-   {
-     "id": "image-id-string",
-     "reason": "Invalid image format or content",
-     "action": "MARK_INVALID or DELETE_RECORD"
-   }
-   ```
-
-3. **Processing**: The Remove Invalid Image Lambda processes these messages:
-   - Retrieves the image record from DynamoDB
-   - Deletes the original file from S3 bucket
-   - Either marks the record as "invalid" or completely removes it from DynamoDB
-
-4. **Architecture**: Uses a dedicated Dead Letter Queue (DLQ) and Lambda function, with messages filtered by the "INVALID_IMAGE" message type
-
-### Testing the Feature
-
-You can test the Invalid Image Removal feature using the provided testing tool:
-
-1. Deploy the application
-2. Obtain the SNS Topic ARN from the CloudFormation outputs
-3. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
-4. Run the test tool:
-   ```
-   npx ts-node tools/removeInvalidImage.ts <imageId> [deleteRecord]
-   ```
-   - Set `deleteRecord` to "true" if you want to completely remove the record from DynamoDB
-
-Example:
-```bash
-npx ts-node tools/removeInvalidImage.ts 7e6d23d2-0d27-44cc-8b6c-efd8b2782c5c
-```
-
-## Implementation Details
-
-### Log New Images
-Images uploaded to S3 trigger an event that's sent to SNS and then to an SQS queue. A Lambda function (`processImage.ts`) consumes these messages, extracts image metadata, and stores the information in a DynamoDB table. Each image record includes:
-
-- Unique ID
-- S3 key and bucket
-- Upload timestamp
-- Image size and content type
-- Status (initially set to "pending")
+The Filtering feature provides a RESTful API endpoint for searching images based on:
+- Date Range
+- Status
 - Photographer information
 
-### Status Update Mailer
-The same S3 event also triggers an email notification via another Lambda function (`mailer.ts`). This function sends an email to notify stakeholders about the new image upload.
-
-### Status Updating
-The Status Update feature uses the following workflow:
-1. Moderators submit decisions via CLI or testing tool
-2. Messages are published to SNS with message attributes for filtering
-3. A dedicated SQS queue receives status update messages
-4. The updateStatus Lambda processes these messages and updates DynamoDB
-5. A notification is sent to the photographer via email
+The API supports:
+- Single criteria filtering
+- Combined criteria filtering
+- Pagination and sorting
+- Metadata inclusion in results
 
 ## Technology Stack
 
@@ -254,86 +122,24 @@ The Status Update feature uses the following workflow:
 
 ## Setup and Deployment
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
-
-2. Configure your AWS environment:
-   ```
-   aws configure
-   ```
-
-3. Deploy the stack:
-   ```
-   cdk deploy
-   ```
-
-4. Test the functionality by uploading an image to the created S3 bucket:
-   ```
-   aws s3 cp <image-path> s3://<bucket-name>/
-   ```
+1. Install dependencies
+2. Configure AWS environment
+3. Deploy the stack using CDK
+4. Test functionality by uploading images to S3
 
 ## Metadata Update Feature
 
-The Metadata Update feature allows updating image metadata such as captions, dates, and photographer names.
+The Metadata Update feature supports updating:
+- Image captions
+- Date information
+- Photographer names
 
-### Message Format
-
-The metadata update messages follow a specific format:
-
-1. **Message Body**:
-   ```json
-   {
-     "id": "image1.jpeg",
-     "value": "Olympic 100m final - 2024"
-   }
-   ```
-
-2. **Message Attributes**:
-   ```json
-   {
-     "metadata_type": {
-       "DataType": "String",
-       "StringValue": "Caption"
-     }
-   }
-   ```
-
-### Valid Metadata Types
-
-The system supports three types of metadata updates:
-- `Caption`: Image caption or description
-- `Date`: Image date in string format
-- `name`: Photographer's name
-
-### Testing the Feature
-
-You can test the Metadata Update feature using the provided testing tool:
-
-1. Deploy the application
-2. Set the environment variable: `export TOPIC_ARN=<your-topic-arn>`
-3. Run the test tool:
-   ```bash
-   ts-node tools/updateMetadata.ts <imageId> <Caption|Date|name> "value"
-   ```
-
-Example:
-```bash
-ts-node tools/updateMetadata.ts image1.jpeg Caption "Olympic 100m final - 2024"
-ts-node tools/updateMetadata.ts image1.jpeg Date "2024-04-15"
-ts-node tools/updateMetadata.ts image1.jpeg name "John Smith"
-```
-
-### Implementation Details
-
-The metadata update process follows this workflow:
-1. Updates are submitted via CLI tool
-2. Messages are published to SNS with appropriate attributes
-3. A dedicated SQS queue receives metadata update messages
-4. The updateMetadata Lambda processes these messages
-5. DynamoDB records are updated with new metadata
-6. Each update includes a timestamp of the modification
+Updates are processed through:
+1. AWS CLI message submission
+2. SNS/SQS message routing
+3. Lambda processing
+4. DynamoDB record updates
+5. Modification timestamp tracking
 
 
 

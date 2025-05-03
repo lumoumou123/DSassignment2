@@ -66,6 +66,11 @@ export class EDAAppStack extends cdk.Stack {
         receiveMessageWaitTime: cdk.Duration.seconds(10),
       });
   
+  // 创建photographer更新队列
+  const photographerUpdateQueue = new sqs.Queue(this, "photographer-update-queue", {
+    receiveMessageWaitTime: cdk.Duration.seconds(10),
+  });
+  
   // Lambda functions
 
   const processImageFn = new lambdanode.NodejsFunction(
@@ -172,8 +177,8 @@ export class EDAAppStack extends cdk.Stack {
   newImageTopic.addSubscription(
     new subs.SqsSubscription(metadataUpdateQueue, {
       filterPolicy: {
-        messageType: sns.SubscriptionFilter.stringFilter({
-          allowlist: ["METADATA_UPDATE"]
+        metadata_type: sns.SubscriptionFilter.stringFilter({
+          allowlist: ["Caption", "Date", "name"]
         })
       }
     })
@@ -185,6 +190,17 @@ export class EDAAppStack extends cdk.Stack {
       filterPolicy: {
         messageType: sns.SubscriptionFilter.stringFilter({
           allowlist: ["INVALID_IMAGE"]
+        })
+      }
+    })
+  );
+
+  // 添加photographer更新订阅
+  newImageTopic.addSubscription(
+    new subs.SqsSubscription(photographerUpdateQueue, {
+      filterPolicy: {
+        messageType: sns.SubscriptionFilter.stringFilter({
+          allowlist: ["PHOTOGRAPHER_UPDATE"]
         })
       }
     })
@@ -251,6 +267,29 @@ export class EDAAppStack extends cdk.Stack {
 
   removeInvalidImageFn.addEventSource(invalidImageEventSource);
 
+  // 连接SQS到Lambda
+  const photographerUpdateEventSource = new events.SqsEventSource(photographerUpdateQueue, {
+    batchSize: 5,
+    maxBatchingWindow: cdk.Duration.seconds(5),
+  });
+
+  // Create photographer update Lambda
+  const updatePhotographerFn = new lambdanode.NodejsFunction(
+    this,
+    "UpdatePhotographerFn",
+    {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      entry: `${__dirname}/../lambdas/updatePhotographer.ts`,
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 128,
+      environment: {
+        IMAGE_TABLE_NAME: imagesTable.tableName,
+      },
+    }
+  );
+
+  updatePhotographerFn.addEventSource(photographerUpdateEventSource);
+
   // Permissions
   
   mailerFn.addToRolePolicy(
@@ -283,6 +322,9 @@ export class EDAAppStack extends cdk.Stack {
   // Add permissions for invalid image deletion Lambda
   imagesTable.grantReadWriteData(removeInvalidImageFn);
   imagesBucket.grantDelete(removeInvalidImageFn);
+
+  // Add permissions for photographer update Lambda
+  imagesTable.grantReadWriteData(updatePhotographerFn);
 
   // Output
   
